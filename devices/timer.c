@@ -7,7 +7,20 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-  
+
+/* List of sleeping threads. */
+static struct list sleep_list;
+
+static bool
+wake_tick_less (const struct list_elem *a,
+                const struct list_elem *b,
+                void *aux UNUSED)
+{
+  struct thread *ta = list_entry (a, struct thread, elem);
+  struct thread *tb = list_entry (b, struct thread, elem);
+  return ta->wake_tick < tb->wake_tick;
+}
+
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -37,6 +50,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init (&sleep_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -92,8 +106,20 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  if (ticks <= 0)
+    return;
+
+  enum intr_level old_level = intr_disable ();
+
+  struct thread *cur = thread_current ();
+  cur->wake_tick = start + ticks;
+
+  /* Insert into sleep list sorted by wake_tick. */
+  list_insert_ordered (&sleep_list, &cur->elem, wake_tick_less, NULL);
+
+  thread_block ();
+
+  intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
