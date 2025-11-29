@@ -83,15 +83,25 @@ typedef int tid_t;
 struct thread
   {
     /* Owned by thread.c. */
+    int64_t wakeup_tick;		/* Tick count to wake the thread */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    
+    // Scheduling priority
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+    // Original priority for donation logic
+    int base_priority;
 
+    int64_t wakeup_tick;		/* for alarm clock */
+
+    struct list_elem allelem;           /* List element for all threads list. */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    struct lock *waiting_lock;		/* Lock this thread is waiting for */
+    struct list held_locks;		/* list of locks this thread holds */ 
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
