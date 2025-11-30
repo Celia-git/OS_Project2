@@ -156,7 +156,7 @@ cond_sema_priority_greater (const struct list_elem *a,
 	return ta->priority > tb->priority;
 }
 
-/* Propogate donor's priority through a chain of nested locks */
+/* Propagate donor's priority through a chain of nested locks */
 static void
 donate_priority_chain (struct thread *donor, struct lock *lock)
 {
@@ -164,8 +164,13 @@ donate_priority_chain (struct thread *donor, struct lock *lock)
   while (lock != NULL && lock->holder != NULL && depth < DONATION_MAX_DEPTH)
   {
     struct thread *holder = lock->holder;
-    if (holder->priority < donor->priority)
-      holder->priority = donor->priority;
+    
+    int old_priority = holder->priority;
+    if (donor->priority > holder->priority)
+    {
+      holder->base_priority = donor->priority;  // Temporarily boost base
+      thread_update_priority (holder);         // Recompute effective priority
+    }
 
     if (holder->waiting_lock == NULL)
       break;
@@ -174,6 +179,7 @@ donate_priority_chain (struct thread *donor, struct lock *lock)
     depth++;
   }
 }
+
 
 static void sema_test_helper (void *sema_);
 
@@ -308,14 +314,13 @@ lock_release (struct lock *lock)
   list_remove (&lock->elem);
   lock->holder = NULL;
   
-  /* Recompute current thread's priority */
-  if (!thread_mlfqs)
-    thread_update_priority (thread_current ());
+  /* CRITICAL: Always recompute priority after releasing ANY lock */
+  thread_update_priority (thread_current ());
   
-  intr_set_level(old_level);
-  
+  intr_set_level (old_level);
   sema_up (&lock->semaphore);
 }
+
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds

@@ -160,24 +160,28 @@ void
 thread_update_priority (struct thread *t)
 {
   ASSERT (is_thread (t));
-  t->priority = t->base_priority;
-
+  
+  int max_priority = t->base_priority;
+  
+  /* Check all locks held by this thread */
   struct list_elem *e;
   for (e = list_begin (&t->held_locks);
        e != list_end (&t->held_locks);
        e = list_next (e))
+  {
+    struct lock *lock = list_entry (e, struct lock, elem);
+    if (!list_empty (&lock->semaphore.waiters))
     {
-      struct lock *lock = list_entry (e, struct lock, elem);
-      if (!list_empty (&lock->semaphore.waiters))
-        {
-          /* Waiters list is ordered by priority */
-          struct thread *w = list_entry (list_front (&lock->semaphore.waiters),
-                                         struct thread, elem);
-          if (w->priority > t->priority)
-            t->priority = w->priority;
-        }
+      struct thread *w = list_entry (list_front (&lock->semaphore.waiters), 
+                                    struct thread, elem);
+      if (w->priority > max_priority)
+        max_priority = w->priority;
     }
+  }
+  
+  t->priority = max_priority;
 }
+
 
 /* Prints thread statistics. */
 void
