@@ -106,14 +106,8 @@ pintos --gdb -- run priority-donation
 ⏳ priority-mlfq (bonus)
 ```
 
-**Next step**: Fix `priority-donation` page fault using the `donate_priority_chain()` + `thread_update_priority()` corrections, then test all remaining donation tests.[1][11]
+**Next step**: Fix `priority-donation` page fault using the `donate_priority_chain()` + `thread_update_priority()` corrections, then test all remaining donation tests.
 
-[1](https://www.cs.utexas.edu/~ans/classes/cs439/projects/pintos/WWW/pintos_2.html)
-[2](https://github.com/JingHuaMan/pintos)
-[3](https://grail.eecs.csuohio.edu/~cis345s/PintosCSU_Ref.pdf)
-[4](https://pkuflyingpig.gitbook.io/pintos/getting-started/debug-and-test/testing)
-[5](https://github.com/anandthegreat/PintOS-Project-1)
-[6](https://cs162.org/static/proj/proj-threads/docs/tasks/testing/)
 [7](https://ycruan.github.io/files/162_project1_design/)
 [8](https://courses.cs.vt.edu/cs4284/spring2024/pintosdocs/pintos_2.html)
 [9](https://github.com/sanfordcheung/Pintos)
