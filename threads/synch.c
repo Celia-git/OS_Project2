@@ -32,7 +32,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-#define DONATION_MAX_DEPTH	/* Max depth for nested donation chain */
+#define DONATION_MAX_DEPTH 8	/* Max depth for nested donation chain */
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -70,7 +70,7 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_insert_ordered (&sema->waiters, 
-		           &thread_current ()->elem
+		           &thread_current ()->elem,
 			   thread_priority_greater,
 			   NULL);
       thread_block ();
@@ -132,6 +132,30 @@ sema_up (struct semaphore *sema)
   intr_set_level (old_level);
 }
 
+/* Return the highest-priority thread waiting on SEMA, or NULL if none. */
+static struct thread *
+semaphore_max_waiter (struct semaphore *sema)
+{
+  if (list_empty (&sema->waiters))
+    return NULL;
+
+  ASSERT (!list_empty (&sema->waiters));
+  struct list_elem *e = list_front (&sema->waiters);
+  return list_entry (e, struct thread, elem);
+}
+
+static bool
+cond_sema_priority_greater (const struct list_elem *a,
+			    const struct list_elem *b,
+			    void *aux UNUSED)
+{
+	const struct semaphore_elem *sa = list_entry (a, struct semaphore_elem, elem);
+	const struct semaphore_elem *sb = list_entry (b, struct semaphore_elem, elem);
+	struct thread *ta = semaphore_max_waiter (&sa->semaphore);
+	struct thread *tb = semaphore_max_waiter (&sb->semaphore);
+	return ta->priority > tb->priority;
+}
+
 /* Propogate donor's priority through a chain of nested locks */
 static void
 donate_priority_chain (struct thread *donor, struct lock *lock)
@@ -150,7 +174,6 @@ donate_priority_chain (struct thread *donor, struct lock *lock)
     depth++;
   }
 }
-
 
 static void sema_test_helper (void *sema_);
 
@@ -188,7 +211,7 @@ sema_test_helper (void *sema_)
       sema_up (&sema[1]);
     }
 }
-
+
 /* Initializes LOCK.  A lock can be held by at most a single
    thread at any given time.  Our locks are not "recursive", that
    is, it is an error for the thread currently holding a lock to
@@ -202,8 +225,8 @@ sema_test_helper (void *sema_)
    meaning that one thread can "down" the semaphore and then
    another one "up" it, but with a lock the same thread must both
    acquire and release it.  When these restrictions prove
-   onerous, it's a good sign that a semaphore should be used,
-   instead of a lock. */
+   onerous, it's a better idea to use a semaphore instead of a
+   lock. */
 void
 lock_init (struct lock *lock)
 {
@@ -211,6 +234,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  list_init (&lock->elem);
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -280,12 +304,12 @@ lock_release (struct lock *lock)
 
   enum intr_level old_level = intr_disable ();
 
-  /* Remove this lock from the holder;s list */
+  /* Remove this lock from the holder's list */
   list_remove (&lock->elem);
   lock->holder = NULL;
   
   /* Recompute current thread's priority */
-  if (!thread_mpfqs)
+  if (!thread_mlfqs)
     thread_update_priority (thread_current ());
   
   intr_set_level(old_level);
@@ -303,13 +327,6 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
-/* One semaphore in a list. */
-struct semaphore_elem 
-  {
-    struct list_elem elem;              /* List element. */
-    struct semaphore semaphore;         /* This semaphore. */
-  };
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
@@ -395,3 +412,4 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
+
