@@ -88,12 +88,21 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-      struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem allelem;           /* List element for all threads list. */
+    /* Owned by thread.c. For alarm clock functionality. */
 
-      /* Shared between thread.c and synch.c. */
-      struct list_elem elem;              /* Shared list element (for ready list / semaphore waiters). */
-      struct list_elem sleep_elem;        /* Element for sleep_list. */
 
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+
+    
+    /* Alarm clock */
+    tick_t wake_up_tick;           /* Tick to wake up thread */
+
+    /* Priority donation */
+    struct list donations;         /* Threads that donated priority */
+    struct list_elem donation_elem;
+    struct lock *waiting_on_lock;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
