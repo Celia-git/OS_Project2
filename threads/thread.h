@@ -88,10 +88,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+      struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+      /* Shared between thread.c and synch.c. */
+      struct list_elem elem;              /* Shared list element (for ready list / semaphore waiters). */
+      struct list_elem sleep_elem;        /* Element for sleep_list. */
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
