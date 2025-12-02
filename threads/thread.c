@@ -87,7 +87,7 @@ void thread_update_priority (struct thread *t);
 static tid_t allocate_tid (void);
 
 /* Initializes the threading system by transforming the code
-   that's currently running into a thread.  This can't work in
+  that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
    was careful to put the bottom of the stack at a page boundary.
 
@@ -155,31 +155,37 @@ thread_tick (void)
     intr_yield_on_return ();
 }
 
-/* Recalculate effective priority from base priority and donations */
+/* Recalculate effective priority based on base priority + donations. */
 void
 thread_update_priority (struct thread *t)
 {
   ASSERT (is_thread (t));
-  
-  int max_priority = t->base_priority;
-  
+
+  /* Start with base/original priority */
+  int new_priority = t->base_priority;
+
   /* Check all locks held by this thread */
   struct list_elem *e;
   for (e = list_begin (&t->held_locks);
        e != list_end (&t->held_locks);
        e = list_next (e))
-  {
-    struct lock *lock = list_entry (e, struct lock, elem);
-    if (!list_empty (&lock->semaphore.waiters))
     {
-      struct thread *w = list_entry (list_front (&lock->semaphore.waiters), 
-                                    struct thread, elem);
-      if (w->priority > max_priority)
-        max_priority = w->priority;
+      struct lock *lock = list_entry (e, struct lock, elem);
+
+      /* If the lock has waiters, highest waiter may boost priority */
+      if (!list_empty (&lock->semaphore.waiters))
+        {
+          struct thread *waiter =
+            list_entry (list_front (&lock->semaphore.waiters),
+                        struct thread, elem);
+
+          if (waiter->priority > new_priority)
+            new_priority = waiter->priority;
+        }
     }
-  }
-  
-  t->priority = max_priority;
+
+  /* Apply new effective priority */
+  t->priority = new_priority;
 }
 
 
