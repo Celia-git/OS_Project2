@@ -158,27 +158,22 @@ cond_sema_priority_greater (const struct list_elem *a,
 
 /* Propagate donor's priority through a chain of nested locks */
 static void
-donate_priority_chain (struct thread *donor, struct lock *lock)
-{
+donate_priority_chain(struct thread *donor, struct lock *lock) {
   int depth = 0;
-  while (lock != NULL && lock->holder != NULL && depth < DONATION_MAX_DEPTH)
-  {
+  while (lock != NULL && lock->holder != NULL && depth < DONATION_MAX_DEPTH) {
     struct thread *holder = lock->holder;
-    
-    int old_priority = holder->priority;
-    if (donor->priority > holder->priority)
-    {
-      holder->base_priority = donor->priority;  // Temporarily boost base
-      thread_update_priority (holder);         // Recompute effective priority
-    }
+    if (holder->priority >= donor->priority)
+      break;  // Stop if holder already has equal or higher priority
 
-    if (holder->waiting_lock == NULL)
-      break;
+    // Boost the base_priority only if donor is higher
+    holder->priority = donor->priority;
 
+    // Continue donation up the chain if holder is waiting on another lock
     lock = holder->waiting_lock;
     depth++;
   }
 }
+
 
 
 static void sema_test_helper (void *sema_);
