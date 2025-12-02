@@ -159,35 +159,37 @@ thread_tick (void)
 void
 thread_update_priority (struct thread *t)
 {
-  ASSERT (is_thread (t));
+    ASSERT(is_thread(t));
 
-  /* Start with base/original priority */
-  int new_priority = t->base_priority;
+    /* Start with base (original) priority */
+    int new_priority = t->base_priority;
 
-  /* Check all locks held by this thread */
-  struct list_elem *e;
-  for (e = list_begin (&t->held_locks);
-       e != list_end (&t->held_locks);
-       e = list_next (e))
+    /* Check all locks held by this thread */
+    struct list_elem *e;
+    for (e = list_begin(&t->held_locks);
+         e != list_end(&t->held_locks);
+         e = list_next(e))
     {
-      struct lock *lock = list_entry (e, struct lock, elem);
+        /* Each element in held_locks is a lock*, not a thread elem */
+        struct lock *lock = list_entry(e, struct lock, elem);
+        struct semaphore *sema = &lock->semaphore;
 
-      /* If the lock has waiters, highest waiter may boost priority */
-      if (!list_empty (&lock->semaphore.waiters))
+        /* If the lock has waiters, the highest waiter may raise priority */
+        if (!list_empty(&sema->waiters))
         {
-          struct thread *waiter =
-            list_entry (list_front (&lock->semaphore.waiters),
-                        struct thread, elem);
+            struct thread *max_waiter =
+                list_entry(list_front(&sema->waiters),
+                           struct thread,
+                           elem);
 
-          if (waiter->priority > new_priority)
-            new_priority = waiter->priority;
+            if (max_waiter->priority > new_priority)
+                new_priority = max_waiter->priority;
         }
     }
 
-  /* Apply new effective priority */
-  t->priority = new_priority;
+    /* Apply new effective priority */
+    t->priority = new_priority;
 }
-
 
 /* Prints thread statistics. */
 void
