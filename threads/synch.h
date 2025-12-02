@@ -30,7 +30,7 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
-    struct list_elem elem;      /* List element for thread's held_locks list. */
+    /* NOTE: we DO NOT store a list_elem inside a lock */
   };
 
 /* Lock operations. */
@@ -52,11 +52,7 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
-/* Optimization barrier.
-
-   The compiler will not reorder operations across an
-   optimization barrier.  See "Optimization Barriers" in the
-   reference guide for more information.*/
+/* Optimization barrier. */
 #define barrier() asm volatile ("" : : : "memory")
 
 #endif /* threads/synch.h */
