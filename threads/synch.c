@@ -247,29 +247,43 @@ lock_init (struct lock *lock)
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
 void
-lock_acquire (struct lock *lock)
+lock_acquire(struct lock *lock)
 {
-  ASSERT (lock != NULL);
-  ASSERT (!intr_context ());
-  ASSERT (!lock_held_by_current_thread (lock));
+    ASSERT(lock != NULL);
+    ASSERT(!lock_held_by_current_thread(lock));
 
-  enum intr_level old_level = intr_disable ();
-  struct thread *cur = thread_current ();
+    struct thread *cur = thread_current();
 
-  if (lock->holder != NULL && !thread_mlfqs)
-  {
-    cur->waiting_lock = lock;
-    donate_priority_chain (cur, lock);
-  }
-  intr_set_level (old_level);
+    /* If the lock is held, we may need to donate priority. */
+    if (lock->holder != NULL)
+    {
+        cur->waiting_lock = lock;
 
-  sema_down (&lock->semaphore);
+        struct thread *t = cur;
+        struct lock *l = lock;
 
-  old_level = intr_disable ();
-  cur->waiting_lock = NULL;
-  lock->holder = cur;
-  list_push_back (&cur->held_locks, &lock->elem);
-  intr_set_level (old_level);
+        /* Priority donation chain */
+        while (l != NULL && t->priority > l->holder->priority)
+        {
+            l->holder->priority = t->priority;
+
+            /* Move up the chain */
+            t = l->holder;
+            l = t->waiting_lock;
+        }
+    }
+
+    sema_down(&lock->semaphore);
+
+    /* We now hold the lock */
+    cur->waiting_lock = NULL;
+    lock->holder = cur;
+
+    /* Track held locks */
+    list_push_back(&cur->held_locks, &lock->elem);
+
+    /* After acquiring, recalc priority because we may have inherited */
+    thread_update_priority(cur);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
