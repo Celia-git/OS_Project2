@@ -1,6 +1,5 @@
 #ifndef THREADS_SYNCH_H
 #define THREADS_SYNCH_H
-
 #include <list.h>
 #include <stdbool.h>
 
@@ -11,14 +10,6 @@ struct semaphore
     struct list waiters;        /* List of waiting threads. */
   };
 
-/* Element used for condition variable waiters list. */
-struct semaphore_elem
-  {
-    struct list_elem elem;      /* List element. */
-    struct semaphore semaphore; /* Binary semaphore for waiting thread. */
-  };
-
-/* Semaphore operations. */
 void sema_init (struct semaphore *, unsigned value);
 void sema_down (struct semaphore *);
 bool sema_try_down (struct semaphore *);
@@ -30,10 +21,9 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
-    struct list_elem elem;      /* List element for thread's held_locks list. */
+    bool is_donated;            /* Checks if lock is donated to a thread or not*/
   };
 
-/* Lock operations. */
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);
 bool lock_try_acquire (struct lock *);
@@ -43,14 +33,15 @@ bool lock_held_by_current_thread (const struct lock *);
 /* Condition variable. */
 struct condition 
   {
-    struct list waiters;        /* List of waiting semaphore_elem's. */
+    struct list waiters;        /* List of waiting threads. */
   };
 
-/* Condition variable operations. */
 void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
+
+bool compare_sema(struct list_elem *l1, struct list_elem *l2,void *aux);
 
 /* Optimization barrier.
 
