@@ -97,7 +97,7 @@ timer_sleep (int64_t ticks)
   struct thread *current = thread_current ();
 
   int64_t begin = timer_ticks ();
-  current->wakeup_time = begin + ticks;
+  current->wake_time = begin + ticks;
   list_insert_ordered (&wait_queue, &current->elem, prioritize_wake, NULL);
 
   enum intr_level prev_level = intr_disable ();
@@ -218,9 +218,9 @@ bool prioritize_wake (struct list_elem *e1, struct list_elem *e2, void *aux UNUS
   struct thread *th1 = list_entry (e1, struct thread, elem);
   struct thread *th2 = list_entry (e2, struct thread, elem);
 
-  if (th1->wakeup_time < th2->wakeup_time)
+  if (th1->wake_time < th2->wake_time)
     return true;
-  if (th1->wakeup_time == th2->wakeup_time && th1->priority > th2->priority)
+  if (th1->wake_time == th2->wake_time && th1->priority > th2->priority)
     return true;
   return false;
 }
@@ -231,7 +231,7 @@ void wake_ready_threads (void) {
     struct list_elem *head = list_front (&wait_queue);
     struct thread *lead = list_entry (head, struct thread, elem);
 
-    if (lead->wakeup_time <= tick_count) {
+    if (lead->wake_time <= tick_count) {
       list_remove (head);
       thread_unblock (lead);
     } else
