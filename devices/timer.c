@@ -78,6 +78,20 @@ timer_ticks (void)
   return count;
 }
 
+
+/* Orders by wake time, then priority (higher first). */
+bool prioritize_wake (struct list_elem *e1, struct list_elem *e2, void *aux UNUSED)
+{
+  struct thread *th1 = list_entry (e1, struct thread, elem);
+  struct thread *th2 = list_entry (e2, struct thread, elem);
+
+  if (th1->wakeup_time < th2->wakeup_time)
+    return true;
+  if (th1->wakeup_time == th2->wakeup_time && th1->priority > th2->priority)
+    return true;
+  return false;
+}
+
 /* Computes ticks since prior call to timer_ticks(). */
 int64_t
 timer_elapsed (int64_t start_time)
@@ -212,18 +226,6 @@ precise_wait (int64_t num, int32_t denom)
   spin_loop (iter_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 }
 
-/* Orders by wake time, then priority (higher first). */
-bool prioritize_wake (struct list_elem *e1, struct list_elem *e2, void *aux UNUSED)
-{
-  struct thread *th1 = list_entry (e1, struct thread, elem);
-  struct thread *th2 = list_entry (e2, struct thread, elem);
-
-  if (th1->wakeup_time < th2->wakeup_time)
-    return true;
-  if (th1->wakeup_time == th2->wakeup_time && th1->priority > th2->priority)
-    return true;
-  return false;
-}
 
 /* Unblocks overdue threads from wait queue. */
 void wake_ready_threads (void) {
